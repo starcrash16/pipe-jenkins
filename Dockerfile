@@ -1,5 +1,15 @@
-FROM node:7.8.0
-WORKDIR /opt
-ADD . /opt
-RUN npm install
-ENTRYPOINT npm run start
+FROM node:14-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install --production
+
+COPY . .
+
+RUN npm run build
+
+# Puerto interno siempre 3000; el mapeo externo lo hace Docker en el run
+EXPOSE 3000
+
+CMD ["npx", "serve", "-s", "build", "-l", "3000"]
