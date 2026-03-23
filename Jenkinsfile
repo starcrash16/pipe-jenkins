@@ -5,7 +5,7 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'Node_7.8.0'   // nombre exacto configurado en Global Tools
+        nodejs 'NodeJS 25.8.1'   // nombre exacto configurado en Global Tools
     }
 
     environment {
