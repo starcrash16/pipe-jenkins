@@ -1,15 +1,11 @@
-// Jenkinsfile — raíz del proyecto
-// Pipeline: CICD (Multibranch)
-
 pipeline {
     agent any
 
     tools {
-        nodejs 'NodeJS 25.8.1'   // nombre exacto configurado en Global Tools
+        nodejs 'NodeJS 25.8.1'
     }
 
     environment {
-        // Variables que se setearán en el stage Set Environment
         APP_PORT = ''
         CONTAINER_NAME = ''
         IMAGE_NAME = ''
@@ -17,7 +13,6 @@ pipeline {
     }
 
     stages {
-        // ─────────────────────────────────────────
         stage('Checkout') {
             steps {
                 checkout scm
@@ -25,27 +20,26 @@ pipeline {
             }
         }
 
-        // ─────────────────────────────────────────
         stage('Set Environment') {
             steps {
                 script {
-                    if (env.BRANCH_NAME == 'main') {
-                        env.APP_PORT = '3000'
-                        env.CONTAINER_NAME = 'app-main'
-                        env.IMAGE_NAME = 'nodemain'
-                    } else if (env.BRANCH_NAME == 'dev') {
-                        env.APP_PORT = '3001'
-                        env.CONTAINER_NAME = 'app-dev'
-                        env.IMAGE_NAME = 'nodedev'
+                    def branch = env.BRANCH_NAME
+                    if (branch == 'main') {
+                        APP_PORT = '3000'
+                        CONTAINER_NAME = 'app-main'
+                        IMAGE_NAME = 'nodemain'
+                    } else if (branch == 'dev') {
+                        APP_PORT = '3001'
+                        CONTAINER_NAME = 'app-dev'
+                        IMAGE_NAME = 'nodedev'
                     } else {
-                        error("Rama no reconocida: ${env.BRANCH_NAME}")
+                        error("Rama no reconocida: ${branch}")
                     }
-                    echo "Puerto: ${env.APP_PORT} | Contenedor: ${env.CONTAINER_NAME} | Imagen: ${env.IMAGE_NAME}"
+                    echo "Puerto: ${APP_PORT} | Contenedor: ${CONTAINER_NAME} | Imagen: ${IMAGE_NAME}"
                 }
             }
         }
 
-        // ─────────────────────────────────────────
         stage('Build') {
             steps {
                 sh 'npm install'
@@ -53,48 +47,38 @@ pipeline {
             }
         }
 
-        // ─────────────────────────────────────────
         stage('Test') {
             steps {
-                // CORREGIDO: --passWithNoTests no es soportado en esta versión de Jest
-                sh 'npm test -- --watchAll=false || echo "Tests completados con advertencias"'
+                sh 'npm test -- --watchAll=false'
                 echo "Tests completados"
             }
         }
 
-        // ─────────────────────────────────────────
         stage('Build Docker Image') {
             steps {
                 script {
-                    def fullImageName = "${env.IMAGE_NAME}:${env.IMAGE_TAG}"
-                    sh """
-                        docker build -t ${fullImageName} .
-                    """
+                    def fullImageName = "${IMAGE_NAME}:${IMAGE_TAG}"
+                    sh "docker build -t ${fullImageName} ."
                     echo "Imagen construida: ${fullImageName}"
                 }
             }
         }
 
-        // ─────────────────────────────────────────
         stage('Deploy') {
             steps {
                 script {
-                    def fullImageName = "${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                    def fullImageName = "${IMAGE_NAME}:${IMAGE_TAG}"
                     
-                    // Eliminar SOLO el contenedor de este env (no el del otro)
-                    sh """
-                        docker rm -f ${env.CONTAINER_NAME} || true
-                    """
+                    sh "docker rm -f ${CONTAINER_NAME} || true"
                     
-                    // Iniciar nuevo contenedor
                     sh """
                         docker run -d \
-                            --name ${env.CONTAINER_NAME} \
-                            -p ${env.APP_PORT}:3000 \
+                            --name ${CONTAINER_NAME} \
+                            -p ${APP_PORT}:3000 \
                             ${fullImageName}
                     """
                     
-                    echo "App desplegada en http://localhost:${env.APP_PORT}"
+                    echo "App desplegada en http://localhost:${APP_PORT}"
                 }
             }
         }
@@ -102,7 +86,7 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline exitoso — ${env.BRANCH_NAME} -> http://localhost:${env.APP_PORT}"
+            echo "Pipeline exitoso — ${env.BRANCH_NAME} -> http://localhost:${APP_PORT}"
         }
         failure {
             echo "Pipeline fallo en rama ${env.BRANCH_NAME}"
